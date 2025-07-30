@@ -1,19 +1,61 @@
 import React from 'react';
 import { BookOpen, Users, FolderOpen, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
-import { mockModules, mockGroups, mockProjects, mockSubmissions } from '../../data/mockData';
+import { apiService } from '../../services/api';
 
 export function TeacherDashboard() {
-  const totalModules = mockModules.length;
-  const totalGroups = mockGroups.length;
-  const totalProjects = mockProjects.length;
-  const pendingSubmissions = mockSubmissions.filter(s => s.status === 'pending').length;
+  const [stats, setStats] = useState({
+    totalModules: 0,
+    totalGroups: 0,
+    totalProjects: 0,
+    pendingSubmissions: 0
+  });
+  const [modules, setModules] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const stats = [
-    { label: 'Modules', value: totalModules, icon: BookOpen, color: 'bg-blue-500' },
-    { label: 'Groupes', value: totalGroups, icon: Users, color: 'bg-green-500' },
-    { label: 'Projets', value: totalProjects, icon: FolderOpen, color: 'bg-purple-500' },
-    { label: 'En attente', value: pendingSubmissions, icon: Clock, color: 'bg-orange-500' }
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const [modulesData, projectsData, groupsData, submissionsData] = await Promise.all([
+        apiService.getModules(),
+        apiService.getProjects(),
+        apiService.getGroups(),
+        apiService.getSubmissions()
+      ]);
+
+      setModules(modulesData);
+      setSubmissions(submissionsData);
+      
+      setStats({
+        totalModules: modulesData.length,
+        totalGroups: groupsData.length,
+        totalProjects: projectsData.length,
+        pendingSubmissions: submissionsData.filter(s => s.status === 'pending').length
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statsCards = [
+    { label: 'Modules', value: stats.totalModules, icon: BookOpen, color: 'bg-blue-500' },
+    { label: 'Groupes', value: stats.totalGroups, icon: Users, color: 'bg-green-500' },
+    { label: 'Projets', value: stats.totalProjects, icon: FolderOpen, color: 'bg-purple-500' },
+    { label: 'En attente', value: stats.pendingSubmissions, icon: Clock, color: 'bg-orange-500' }
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -24,7 +66,7 @@ export function TeacherDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
+        {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div key={index} className="bg-white rounded-lg shadow p-6">
@@ -48,11 +90,11 @@ export function TeacherDashboard() {
           <div className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Modules récents</h3>
             <div className="space-y-3">
-              {mockModules.map((module) => (
+              {modules.slice(0, 3).map((module) => (
                 <div key={module.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{module.name}</p>
-                    <p className="text-sm text-gray-600">{module.students.length} étudiants</p>
+                    <p className="text-sm text-gray-600">{module.studentCount || 0} étudiants</p>
                   </div>
                   <BookOpen className="h-5 w-5 text-blue-500" />
                 </div>
@@ -65,11 +107,11 @@ export function TeacherDashboard() {
           <div className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Soumissions récentes</h3>
             <div className="space-y-3">
-              {mockSubmissions.map((submission) => (
+              {submissions.slice(0, 3).map((submission) => (
                 <div key={submission.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{submission.title}</p>
-                    <p className="text-sm text-gray-600">Groupe {submission.group.name}</p>
+                    <p className="text-sm text-gray-600">Groupe {submission.groupName}</p>
                   </div>
                   <div className="flex items-center space-x-2">
                     {submission.status === 'approved' && (

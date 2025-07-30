@@ -1,17 +1,48 @@
 import React from 'react';
 import { BookOpen, Users, FolderOpen, Calendar, CheckCircle, Clock } from 'lucide-react';
-import { mockModules, mockGroups, mockProjects } from '../../data/mockData';
+import { apiService } from '../../services/api';
 
 export function StudentDashboard() {
-  const myModules = mockModules.slice(0, 2); // Mock: student enrolled in first 2 modules
-  const myGroups = mockGroups.slice(0, 1); // Mock: student in first group
-  const myProjects = mockProjects.slice(0, 1); // Mock: student has 1 active project
+  const [modules, setModules] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      const [modulesData, groupsData, projectsData] = await Promise.all([
+        apiService.getModules(),
+        apiService.getGroups(),
+        apiService.getProjects()
+      ]);
+
+      setModules(modulesData);
+      setGroups(groupsData);
+      setProjects(projectsData);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = [
-    { label: 'Mes modules', value: myModules.length, icon: BookOpen, color: 'bg-blue-500' },
-    { label: 'Mes groupes', value: myGroups.length, icon: Users, color: 'bg-green-500' },
-    { label: 'Projets actifs', value: myProjects.length, icon: FolderOpen, color: 'bg-purple-500' },
+    { label: 'Mes modules', value: modules.length, icon: BookOpen, color: 'bg-blue-500' },
+    { label: 'Mes groupes', value: groups.length, icon: Users, color: 'bg-green-500' },
+    { label: 'Projets actifs', value: projects.filter(p => p.status === 'active').length, icon: FolderOpen, color: 'bg-purple-500' },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -46,11 +77,11 @@ export function StudentDashboard() {
           <div className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Mes modules</h3>
             <div className="space-y-3">
-              {myModules.map((module) => (
+              {modules.slice(0, 3).map((module) => (
                 <div key={module.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{module.name}</p>
-                    <p className="text-sm text-gray-600">Prof. {module.teacher.firstName} {module.teacher.lastName}</p>
+                    <p className="text-sm text-gray-600">Prof. {module.teacherFirstName} {module.teacherLastName}</p>
                   </div>
                   <BookOpen className="h-5 w-5 text-blue-500" />
                 </div>
@@ -63,7 +94,7 @@ export function StudentDashboard() {
           <div className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Projets en cours</h3>
             <div className="space-y-3">
-              {myProjects.map((project) => (
+              {projects.filter(p => p.status === 'active').slice(0, 3).map((project) => (
                 <div key={project.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-start justify-between">
                     <div>
@@ -82,10 +113,15 @@ export function StudentDashboard() {
                   <div className="mt-4">
                     <div className="flex justify-between text-sm text-gray-600 mb-1">
                       <span>Progression</span>
-                      <span>1/3 étapes</span>
+                      <span>{project.steps?.filter(s => s.isCompleted).length || 0}/{project.steps?.length || 0} étapes</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: '33%' }}></div>
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full" 
+                        style={{ 
+                          width: `${project.steps?.length ? (project.steps.filter(s => s.isCompleted).length / project.steps.length) * 100 : 0}%` 
+                        }}
+                      ></div>
                     </div>
                   </div>
                 </div>

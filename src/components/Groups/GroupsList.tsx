@@ -1,11 +1,36 @@
 import React, { useState } from 'react';
 import { Plus, Users, User, Calendar, BookOpen } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { mockGroups } from '../../data/mockData';
+import { apiService } from '../../services/api';
 
 export function GroupsList() {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadGroups();
+  }, []);
+
+  const loadGroups = async () => {
+    try {
+      const data = await apiService.getGroups();
+      setGroups(data);
+    } catch (error) {
+      console.error('Error loading groups:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -34,7 +59,7 @@ export function GroupsList() {
 
       {/* Groups Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockGroups.map((group) => (
+        {groups.map((group) => (
           <div key={group.id} className="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
@@ -51,18 +76,18 @@ export function GroupsList() {
                 <div className="flex items-center text-sm text-gray-600">
                   <User className="h-4 w-4 mr-2" />
                   <span>
-                    Coordinateur: {group.coordinator.firstName} {group.coordinator.lastName}
+                    Coordinateur: {group.coordinatorFirstName} {group.coordinatorLastName}
                   </span>
                 </div>
                 
                 <div className="flex items-center text-sm text-gray-600">
                   <Users className="h-4 w-4 mr-2" />
-                  <span>{group.members.length} membres</span>
+                  <span>{group.members?.length || 0} membres</span>
                 </div>
                 
                 <div className="flex items-center text-sm text-gray-600">
                   <BookOpen className="h-4 w-4 mr-2" />
-                  <span>Module: {group.module.name}</span>
+                  <span>Module: {group.moduleName}</span>
                 </div>
                 
                 <div className="flex items-center text-sm text-gray-600">
@@ -75,14 +100,14 @@ export function GroupsList() {
               <div className="mb-4">
                 <p className="text-sm font-medium text-gray-900 mb-2">Membres:</p>
                 <div className="space-y-1">
-                  {group.members.map((member) => (
+                  {group.members?.map((member) => (
                     <div key={member.id} className="flex items-center space-x-2">
                       <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
                         <User className="h-3 w-3 text-blue-600" />
                       </div>
                       <span className="text-sm text-gray-700">
                         {member.firstName} {member.lastName}
-                        {member.id === group.coordinatorId && (
+                        {member.id == group.coordinatorId && (
                           <span className="text-xs text-blue-600 ml-1">(Coordinateur)</span>
                         )}
                       </span>
@@ -95,7 +120,7 @@ export function GroupsList() {
                 <button className="flex-1 bg-blue-50 text-blue-700 py-2 px-3 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium">
                   Voir détails
                 </button>
-                {(user?.role === 'teacher' || user?.id === group.coordinatorId) && (
+                {(user?.role === 'teacher' || user?.id == group.coordinatorId) && (
                   <button className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors">
                     <User className="h-4 w-4" />
                   </button>
@@ -106,7 +131,7 @@ export function GroupsList() {
         ))}
       </div>
 
-      {mockGroups.length === 0 && (
+      {groups.length === 0 && (
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun groupe trouvé</h3>

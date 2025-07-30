@@ -1,18 +1,43 @@
 import React, { useState } from 'react';
 import { Plus, Users, BookOpen, Calendar, Search } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { mockModules } from '../../data/mockData';
+import { apiService } from '../../services/api';
 import { CreateModuleModal } from './CreateModuleModal';
 
 export function ModulesList() {
   const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [modules, setModules] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredModules = mockModules.filter(module =>
+  useEffect(() => {
+    loadModules();
+  }, []);
+
+  const loadModules = async () => {
+    try {
+      const data = await apiService.getModules();
+      setModules(data);
+    } catch (error) {
+      console.error('Error loading modules:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredModules = modules.filter(module =>
     module.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     module.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -69,7 +94,7 @@ export function ModulesList() {
               <div className="space-y-3">
                 <div className="flex items-center text-sm text-gray-500">
                   <Users className="h-4 w-4 mr-2" />
-                  <span>{module.students.length} étudiants inscrits</span>
+                  <span>{module.studentCount || 0} étudiants inscrits</span>
                 </div>
                 
                 <div className="flex items-center text-sm text-gray-500">
@@ -79,7 +104,7 @@ export function ModulesList() {
                 
                 {user?.role === 'teacher' && (
                   <div className="text-sm text-gray-500">
-                    <span>Enseignant: {module.teacher.firstName} {module.teacher.lastName}</span>
+                    <span>Enseignant: {module.teacherFirstName} {module.teacherLastName}</span>
                   </div>
                 )}
               </div>
@@ -110,7 +135,10 @@ export function ModulesList() {
       )}
 
       {showCreateModal && (
-        <CreateModuleModal onClose={() => setShowCreateModal(false)} />
+        <CreateModuleModal 
+          onClose={() => setShowCreateModal(false)} 
+          onModuleCreated={loadModules}
+        />
       )}
     </div>
   );

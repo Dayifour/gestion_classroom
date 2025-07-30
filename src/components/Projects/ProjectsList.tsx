@@ -1,13 +1,30 @@
 import React, { useState } from 'react';
 import { Plus, FolderOpen, Calendar, Users, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { mockProjects } from '../../data/mockData';
+import { apiService } from '../../services/api';
 
 export function ProjectsList() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProjects = mockProjects.filter(project => {
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      const data = await apiService.getProjects();
+      setProjects(data);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProjects = projects.filter(project => {
     if (filter === 'all') return true;
     return project.status === filter;
   });
@@ -48,6 +65,14 @@ export function ProjectsList() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -117,12 +142,12 @@ export function ProjectsList() {
                     
                     <div className="flex items-center text-sm text-gray-500">
                       <Users className="h-4 w-4 mr-2" />
-                      <span>Module: {project.module.name}</span>
+                      <span>Module: {project.moduleName}</span>
                     </div>
                     
                     <div className="flex items-center text-sm text-gray-500">
                       {getStatusIcon(project.status)}
-                      <span className="ml-2">{project.steps.length} étapes</span>
+                      <span className="ml-2">{project.steps?.length || 0} étapes</span>
                     </div>
                   </div>
                   
@@ -130,13 +155,13 @@ export function ProjectsList() {
                   <div className="mb-4">
                     <div className="flex justify-between text-sm text-gray-600 mb-1">
                       <span>Progression</span>
-                      <span>{project.steps.filter(s => s.isCompleted).length}/{project.steps.length} étapes</span>
+                      <span>{project.steps?.filter(s => s.isCompleted).length || 0}/{project.steps?.length || 0} étapes</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
                         style={{ 
-                          width: `${(project.steps.filter(s => s.isCompleted).length / project.steps.length) * 100}%` 
+                          width: `${project.steps?.length ? (project.steps.filter(s => s.isCompleted).length / project.steps.length) * 100 : 0}%` 
                         }}
                       />
                     </div>
